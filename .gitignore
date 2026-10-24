@@ -1,0 +1,56 @@
+# Local editor settings at any directory depth
+.vscode/
+
+# Local Python environments at any directory depth
+.venv/
+.venv-*/
+venv/
+env/
+ENV/
+
+# Python bytecode and tool caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+.cache/
+.ipynb_checkpoints/
+
+# Coverage reports and packaging outputs
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+
+# Downloaded FlyWire sources and reproducible generated data
+/data/proofread_connections_783.feather
+/data/proofread_root_ids_783.npy
+/data/cache/
+/data/runs/
+
+# Local secrets; keep shareable environment templates
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Temporary files and operating-system metadata
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

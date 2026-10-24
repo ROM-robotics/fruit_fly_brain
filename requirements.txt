@@ -1,0 +1,8 @@
+flygym==1.2.1
+numpy==2.0.2
+pandas==2.3.3
+pyarrow==25.0.1
+scipy==1.15.3
+networkx==3.4.2
+requests==2.34.2
+pytest==9.1.1
