@@ -1,19 +1,21 @@
 # Fruit fly brain
 
-FlyWire connectome-based spiking neural network connected to a FlyGym /
-NeuroMechFly body in MuJoCo.
+FlyWire connectome ဒေတာကို အခြေခံထားသော spiking neural network ကို MuJoCo ထဲရှိ
+FlyGym / NeuroMechFly ကောင်ခန္ဓာနှင့် ချိတ်ဆက်ထားသည်။
 
 - [Project setup, data downloads and usage](README/01_README.md)
 - [Code structure and architecture](README/02_CODE.md)
+- [Q&A (မေးခွန်းနှင့် အဖြေများ)](README/03_QA.md)
 
-## MP4 preview (no GUI required)
+## MP4 ဗီဒီယို preview (GUI မလိုအပ်ပါ)
 
-The global `SAVE_VIDEO` flag in
-[fruitfly_brain/closed_loop.py](fruitfly_brain/closed_loop.py) controls automatic
-MP4 recording. It defaults to `False` to preserve numerical-only runs. Set it
-to `True` to save `data/runs/simulation.mp4` on ordinary CLI runs.
+[fruitfly_brain/closed_loop.py](fruitfly_brain/closed_loop.py) ထဲရှိ global
+`SAVE_VIDEO` flag က MP4 ဗီဒီယို အလိုအလျောက် သိမ်းခြင်းကို ထိန်းချုပ်သည်။
+ပုံမှန်အားဖြင့် `False` ဖြစ်ပြီး ဂဏန်းဒေတာသာ ထွက်သော run များကို ထိန်းသိမ်းထားသည်။
+ပုံမှန် CLI run များတွင် `data/runs/simulation.mp4` ကို သိမ်းလိုပါက `True` သို့
+ပြောင်းပါ။
 
-You can also override the flag per run without editing code:
+Code ကို မပြင်ဘဲ run တစ်ခုချင်းအတွက်လည်း flag ကို override လုပ်နိုင်သည်:
 
 ```bash
 env -u PYTHONPATH MUJOCO_GL=egl .venv/bin/python \
@@ -23,22 +25,23 @@ env -u PYTHONPATH MUJOCO_GL=egl .venv/bin/python \
   --video data/runs/run_1s.mp4
 ```
 
-- `--video` alone uses the default MP4 path; `--no-video` disables recording
-  even if `SAVE_VIDEO = True`.
-- The existing side camera follows the fly at 640x480, 30 FPS and 0.2x playback
-  speed: one simulated second produces approximately five seconds of video.
-- Frames are captured during the simulation and encoded afterwards, including
-  the initial stabilization period. Existing `.npz` files cannot be converted
-  directly to video; re-run the simulation with recording enabled.
-- Recording costs extra rendering time and buffers RGB frames in memory
-  (roughly 132 MiB per simulated second). Start with short runs. Existing
-  video files at the selected path are overwritten.
-- An MP4 encoder is provided by FlyGym's ImageIO/FFmpeg dependencies. Encoding
-  errors propagate rather than being reported as a successful export.
+- `--video` တစ်ခုတည်းသုံးလျှင် ပုံမှန် MP4 လမ်းကြောင်းကို သုံးမည်; `SAVE_VIDEO = True`
+  ဖြစ်နေလျှင်ပင် `--no-video` က ဗီဒီယို သိမ်းခြင်းကို ပိတ်ထားမည်။
+- ရှိနေပြီးသား ဘေးကင်မရာသည် 640x480၊ 30 FPS၊ 0.2x ပြန်ဖွင့်မြန်နှုန်းဖြင့် fly ကို
+  နောက်လိုက်သည်: simulation ၁ စက္ကန့်ကို ဗီဒီယို ခန့်မှန်းခြေ ၅ စက္ကန့်ထုတ်ပေးသည်။
+- Frame များကို simulation အစ stabilization ကာလအပါအဝင် ဖမ်းယူပြီး နောက်မှ encode
+  ပြုလုပ်သည်။ ရှိနှင့်ပြီးသား `.npz` ဖိုင်များကို ဗီဒီယိုအဖြစ် တိုက်ရိုက်ပြောင်း၍ မရပါ;
+  recording ဖွင့်ထားပြီး simulation ကို ပြန်လည် run ရမည်။
+- Recording က rendering အချိန်ပိုကုန်ပြီး RGB frame များကို memory ထဲ buffer
+  လုပ်ထားသည် (simulation ၁ စက္ကန့်လျှင် ခန့်မှန်းခြေ 132 MiB)။ Run တိုတိုများဖြင့်
+  စတင်သင့်သည်။ ရွေးချယ်ထားသော လမ်းကြောင်းရှိ ဗီဒီယိုဖိုင်များကို ထပ်ရေးအစားထိုးမည်။
+- MP4 encoder ကို FlyGym ၏ ImageIO/FFmpeg dependency များက ပံ့ပိုးသည်။ Encoding
+  အမှားများသည် အောင်မြင်သော export အဖြစ် သတင်းပို့မည့်အစား ပျံ့နှံ့ (propagate)
+  သွားမည်။
 
 ## Native MuJoCo GUI (host desktop)
 
-Run the same closed-loop simulation in MuJoCo's desktop viewer:
+Closed-loop simulation အတူတူကို MuJoCo ၏ desktop viewer တွင် run ရန်:
 
 ```bash
 env -u PYTHONPATH -u PYOPENGL_PLATFORM MUJOCO_GL=glfw .venv/bin/python \
@@ -47,51 +50,57 @@ env -u PYTHONPATH -u PYOPENGL_PLATFORM MUJOCO_GL=glfw .venv/bin/python \
   --out data/runs/gui_run.npz
 ```
 
-- A desktop display is required (Linux: `DISPLAY`, e.g. a local X11 desktop
-  or XWayland). This is not a browser UI and does not work on a headless server
-  without a display.
-- Use `MUJOCO_GL=glfw`, not the headless `egl`/`osmesa` backends. Clear
-  `PYOPENGL_PLATFORM` as shown to avoid conflicting OpenGL contexts. The CLI
-  rejects those conflicting settings with an actionable error.
-- The viewer follows the fly's thorax. Left-drag rotates, right-drag pans and
-  the scroll wheel zooms. Camera selection is also available in MuJoCo's UI.
-- Physics and SNN computation remain in our loop, not a second viewer-owned
-  physics simulation. Viewer updates are limited to approximately 60 Hz
-  wall-clock time; simulation speed depends on your machine, not a real-time
-  guarantee. Native viewer pause/speed controls do not control this loop.
-- The window closes when the requested simulated duration finishes. Close it
-  earlier to stop; only completed steps are saved. Closing before the first
-  step prints a message and skips output.
-- Replace `--no-video` with `--video data/runs/gui_run.mp4` to record while
-  viewing. Keep recorded runs short because video buffers frames in memory.
+- Desktop display လိုအပ်သည် (Linux: `DISPLAY`၊ ဥပမာ local X11 desktop သို့မဟုတ်
+  XWayland)။ ၎င်းသည် browser UI မဟုတ်ပဲ display မရှိသော headless server တွင်
+  အလုပ်မလုပ်ပါ။
+- Headless `egl`/`osmesa` backend များမဟုတ်ဘဲ `MUJOCO_GL=glfw` ကို သုံးပါ။
+  OpenGL context များ ပဋိပက္ခမဖြစ်စေရန် ပြထားသည့်အတိုင်း `PYOPENGL_PLATFORM`
+  ကို clear လုပ်ပါ။ ဤပဋိပက္ခဖြစ်စေသော setting များကို CLI က လုပ်ဆောင်နိုင်သည့်
+  error ဖြင့် ငြင်းပယ်မည်။
+- Viewer သည် fly ၏ thorax ကို နောက်လိုက်သည်။ ဘယ်ဘက်ဆွဲလျှင် rotate၊ ညာဘက်ဆွဲလျှင်
+  pan၊ scroll wheel ဖြင့် zoom လုပ်နိုင်သည်။ MuJoCo UI တွင် camera ရွေးချယ်ခွင့်
+  လည်း ရရှိနိုင်သည်။
+- Physics နှင့် SNN တွက်ချက်မှုသည် ဒုတိယ viewer ပိုင် physics simulation တစ်ခု
+  မဟုတ်ဘဲ ကျွန်ုပ်တို့၏ loop ထဲမှာပင် ကျန်ရှိနေသည်။ Viewer update များသည်
+  wall-clock အချိန် ခန့်မှန်းခြေ 60 Hz ဖြင့် ကန့်သတ်ထားသည်; simulation
+  အမြန်နှုန်းသည် သင့်စက်ပေါ် မူတည်ပြီး real-time အာမခံချက် မဟုတ်ပါ။ Native
+  viewer ၏ pause/speed control များသည် ဤ loop ကို ထိန်းချုပ်နိုင်ခြင်း မရှိပါ။
+- တောင်းဆိုထားသော simulation ကာလ ပြီးဆုံးသည်နှင့် window ပိတ်သွားမည်။ ရပ်တန့်ရန်
+  ၎င်းထက်စောပြီး ပိတ်နိုင်သည်; ပြီးစီးသွားသော step များကိုသာ သိမ်းဆည်းမည်။
+  ပထမ step မရောက်မီ ပိတ်လိုက်ပါက message ပြပြီး output ကို ကျော်သွားမည်။
+- ကြည့်ရှုနေစဉ် recording လုပ်ရန် `--no-video` အစား
+  `--video data/runs/gui_run.mp4` ကို အစားထိုးပါ။ ဗီဒီယိုသည် frame များကို
+  memory ထဲ buffer လုပ်သောကြောင့် recording run များကို တိုတောင်းစွာထားပါ။
 
 ## Docker (Ubuntu 22.04, Python 3.10)
 
-[docker/Dockerfile](docker/Dockerfile) installs dependencies directly into the
-container's system Python with `python3 -m pip`; it does not create or copy a
-virtual environment. Mesa OSMesa provides CPU-only headless rendering for the
-fly's vision, without a display server or GPU passthrough. This can be slower
-than GPU rendering. The same image also supports the native MuJoCo GUI through
-local X11/XWayland display forwarding. GUI mode uses GLFW/GLX and Mesa software
-rendering, so no GPU passthrough or NVIDIA toolkit is required.
+[docker/Dockerfile](docker/Dockerfile) က dependency များကို virtual environment
+တစ်ခု ဖန်တီး/ကူးယူခြင်း မရှိဘဲ container ၏ system Python ထဲသို့ `python3 -m pip`
+ဖြင့် တိုက်ရိုက် install လုပ်သည်။ Mesa OSMesa က fly ၏ vision အတွက် display server
+သို့မဟုတ် GPU passthrough မလိုအပ်ဘဲ CPU-only headless rendering ကို ပံ့ပိုးသည်။
+၎င်းသည် GPU rendering ထက် နှေးနိုင်သည်။ Image တူတူပင် local X11/XWayland display
+forwarding မှတစ်ဆင့် native MuJoCo GUI ကိုလည်း ပံ့ပိုးသည်။ GUI mode က GLFW/GLX
+နှင့် Mesa software rendering ကို သုံးသောကြောင့် GPU passthrough သို့မဟုတ်
+NVIDIA toolkit မလိုအပ်ပါ။
 
-### Prepare data
+### ဒေတာ ပြင်ဆင်ခြင်း
 
-Before running a full simulation, download both FlyWire v783 files using the
-instructions in the [setup guide, section 6](README/01_README.md):
+Simulation အပြည့်အစုံ run မလုပ်မီ, [setup guide, section 6](README/01_README.md)
+ရှိ ညွှန်ကြားချက်များအတိုင်း FlyWire v783 ဖိုင် နှစ်ခုလုံးကို download လုပ်ပါ:
 
 ```text
 data/proofread_connections_783.feather
 data/proofread_root_ids_783.npy
 ```
 
-Both files are required unless a valid `data/cache/connectome.npz` already
-exists. Follow the dataset's attribution and CC BY 4.0 license requirements
-linked in the setup guide. Builds do not download data automatically.
+တည်မြဲသော `data/cache/connectome.npz` မရှိလျှင် ဖိုင်နှစ်ခုလုံး လိုအပ်သည်။
+Setup guide တွင် link ပေးထားသော dataset ၏ attribution နှင့် CC BY 4.0 license
+လိုအပ်ချက်များကို လိုက်နာပါ။ Build လုပ်ခြင်းက ဒေတာကို အလိုအလျောက်
+download မလုပ်ပါ။
 
-### Build and run
+### Build နှင့် run
 
-From the project root:
+Project root မှ:
 
 ```bash
 bash docker/build_docker_image
@@ -100,12 +109,14 @@ bash docker/run_image --duration 0.1 --out /data/runs/docker_smoke.npz
 bash docker/run_image --duration 1.0 --video /data/runs/run_1s.mp4
 ```
 
-The helpers also work from other working directories. Set `IMAGE_NAME` for a
-custom image tag. The run helper mounts the project's `data/` at `/data`, so
-downloaded data is available without rebuilding and caches/results persist on
-the host. It runs with your host UID/GID to avoid root-owned output files.
+Helper များသည် အခြား working directory များမှလည်း အလုပ်လုပ်သည်။ Custom image
+tag အတွက် `IMAGE_NAME` ကို သတ်မှတ်ပါ။ Run helper က project ၏ `data/` ကို
+`/data` တွင် mount လုပ်ပေးသဖြင့် download လုပ်ထားသော ဒေတာကို ပြန်လည် build
+မလုပ်ဘဲ သုံးနိုင်ပြီး cache/result များသည် host ပေါ်တွင် ဆက်လက်တည်ရှိမည်။
+Root ပိုင်ဆိုင်သော output ဖိုင်များ မဖြစ်ပေါ်စေရန် host ၏ UID/GID ဖြင့်
+run ပေးသည်။
 
-Equivalent direct Docker commands:
+တူညီသော တိုက်ရိုက် Docker command များ:
 
 ```bash
 docker build -f docker/Dockerfile -t romrobotics/fruit_fly_brain:latest .
@@ -116,13 +127,14 @@ docker run --rm \
   --duration 0.1 --out /data/runs/docker_smoke.npz
 ```
 
-The image also includes the local source data at `/data`; `/app/data` links
-there so existing CLI defaults work unchanged. Without a bind mount, outputs
-stay inside the container and are lost when it is removed with `--rm`.
-Generated host caches/runs, local virtual environments and secrets are excluded
-from the build context.
+Image ထဲတွင် local source ဒေတာကိုလည်း `/data` ၌ ထည့်သွင်းထားသည်; `/app/data`
+သည် ထို့ဆီသို့ link ဆက်ထားသဖြင့် ရှိနှင့်ပြီးသား CLI ပုံမှန်တန်ဖိုးများ
+မပြောင်းလဲဘဲ အလုပ်လုပ်သည်။ Bind mount မပါပါက output များသည် container ထဲ
+ကျန်ရှိနေပြီး `--rm` ဖြင့် ဖယ်ရှားသည့်အခါ ပျောက်ဆုံးသွားမည်။ Host ပေါ်တွင်
+ဖန်တီးထားသော cache/run ဖိုင်များ၊ local virtual environment များနှင့် secret
+များကို build context မှ ထုတ်ပယ်ထားသည်။
 
-### Validate the image
+### Image ကို စစ်ဆေးခြင်း
 
 ```bash
 docker run --rm --entrypoint python3 \
@@ -131,18 +143,19 @@ docker run --rm --entrypoint python3 \
   romrobotics/fruit_fly_brain:latest -m pytest tests -q -p no:cacheprovider
 ```
 
-The tests include a short headless FlyGym physics/vision simulation. The
-real-connectome test is skipped unless its cache is available; to include it,
-mount `data/` as above after building the cache with a simulation run.
-The CLI explicitly releases simulation/rendering resources on completion or
-failure, including OSMesa contexts before Python's thread-pool shutdown.
+Test များတွင် FlyGym physics/vision ၏ တိုတောင်းသော headless simulation
+တစ်ခု ပါဝင်သည်။ Cache မရရှိနိုင်လျှင် real-connectome test ကို ကျော်သွားမည်;
+ထည့်သွင်းလိုပါက simulation run တစ်ခုဖြင့် cache ကို build လုပ်ပြီးနောက်
+အထက်ပါအတိုင်း `data/` ကို mount လုပ်ပါ။ CLI သည် Python ၏ thread-pool
+shutdown မလုပ်မီ OSMesa context များအပါအဝင် simulation/rendering resource
+များကို ပြီးစီးချိန် သို့မဟုတ် မအောင်မြင်ချိန်တွင် အတိအလင်း လွှတ်ပေးသည်။
 
-### Run the MuJoCo GUI in Docker
+### Docker ထဲတွင် MuJoCo GUI ကို run ခြင်း
 
-On a Linux desktop with X11 or XWayland, run from the project root:
+X11 သို့မဟုတ် XWayland ရှိသော Linux desktop တွင် project root မှ run ပါ:
 
 ```bash
-# Ubuntu: install only if the host does not already have xauth.
+# Ubuntu: host တွင် xauth မရှိသေးလျှင်သာ install လုပ်ပါ။
 sudo apt-get install xauth
 
 bash docker/build_docker_image
@@ -151,35 +164,41 @@ bash docker/run_image \
   --out /data/runs/docker_gui.npz
 ```
 
-Running the helper without arguments opens the GUI for 30 simulated seconds
-with video recording disabled:
+Argument မပါဘဲ helper ကို run ပါက ဗီဒီယို recording ပိတ်ထားသော GUI ကို
+simulation ၃၀ စက္ကန့်အတွက် ဖွင့်ပေးသည်:
 
 ```bash
 bash docker/run_image
-# Or, when your working directory is docker/:
+# သို့မဟုတ် working directory သည် docker/ ဖြစ်နေပါက:
 ./run_image
 ```
 
-Explicit arguments are passed through unchanged. For example,
-`bash docker/run_image --duration 1.0 --no-video` remains a headless run.
-This helper default does not change the image's direct `docker run` defaults.
+Argument များကို တိုက်ရိုက် ထည့်သွင်းပါက ထိုအတိုင်း ပေးပို့မည်။ ဥပမာ
+`bash docker/run_image --duration 1.0 --no-video` သည် headless run တစ်ခု
+အဖြစ်ပင် ဆက်ရှိနေမည်။ ဤ helper ၏ ပုံမှန်တန်ဖိုးက image ၏ တိုက်ရိုက်
+`docker run` ပုံမှန်တန်ဖိုးများကို မပြောင်းလဲစေပါ။
 
-The helper detects `--gui` (including its no-argument default) and automatically:
+Helper သည် `--gui` (argument မပါသော ပုံမှန်အခြေအနေအပါအဝင်) ကို သိရှိပြီး
+အလိုအလျောက်:
 
-- passes your local `DISPLAY` and mounts the X11 sockets read-only;
-- creates a temporary mode-600 Xauthority file containing only the selected
-  display's cookie, mounts it read-only and removes it when Docker exits;
-- overrides the image's headless defaults with `MUJOCO_GL=glfw` and
-  `PYOPENGL_PLATFORM=glx`;
-- enables Mesa software rendering with `LIBGL_ALWAYS_SOFTWARE=1`;
-- runs as your host UID/GID and keeps results in the host's `data/runs/`.
+- သင့် local `DISPLAY` ကို ပေးပို့ပြီး X11 socket များကို read-only ဖြင့်
+  mount လုပ်သည်;
+- ရွေးချယ်ထားသော display ၏ cookie တစ်ခုတည်းပါသည့် mode-600 Xauthority
+  ယာယီဖိုင်တစ်ခု ဖန်တီးပြီး read-only ဖြင့် mount လုပ်ကာ Docker ပြီးဆုံးသည့်
+  အခါ ဖယ်ရှားသည်;
+- Image ၏ headless ပုံမှန်တန်ဖိုးများကို `MUJOCO_GL=glfw` နှင့်
+  `PYOPENGL_PLATFORM=glx` ဖြင့် override လုပ်သည်;
+- `LIBGL_ALWAYS_SOFTWARE=1` ဖြင့် Mesa software rendering ကို ဖွင့်ပေးသည်;
+- သင့် host UID/GID အဖြစ် run ပြီး ရလဒ်များကို host ၏ `data/runs/` တွင်
+  ထားရှိသည်။
 
-No `xhost +`, `--privileged`, host networking or GPU device access is needed.
-Only run images you trust: X11 access allows an application to interact with
-your desktop. Use the GUI helper in the foreground so its temporary
-authentication file can be cleaned up on exit.
+`xhost +`၊ `--privileged`၊ host networking သို့မဟုတ် GPU device access
+မည်သည့်တစ်ခုမျှ မလိုအပ်ပါ။ ယုံကြည်ရသော image များကိုသာ run ပါ: X11 access
+သည် application တစ်ခုအား သင့် desktop နှင့် interact လုပ်ခွင့် ပေးသည်။
+ယာယီ authentication ဖိုင်ကို ပိတ်ချိန်တွင် ရှင်းလင်းနိုင်စေရန် GUI helper
+ကို foreground တွင် သုံးပါ။
 
-For GUI plus video, keep the recording short:
+GUI နှင့် ဗီဒီယို အတူတကွအတွက် recording ကို တိုတောင်းစွာထားပါ:
 
 ```bash
 bash docker/run_image \
@@ -188,23 +207,27 @@ bash docker/run_image \
   --video /data/runs/docker_gui_1s.mp4
 ```
 
-The camera controls, early-close behavior and duration limits are the same as
-the host GUI described above. Software rendering and the whole-brain simulation
-can be slower than real time. There is no interactive GUI in headless mode;
-pass explicit arguments without `--gui` to retain the original OSMesa
-numerical/MP4 workflow.
+Camera control များ၊ စောစီးစွာပိတ်ခြင်း အပြုအမူနှင့် ကာလကန့်သတ်ချက်များသည်
+အထက်တွင် ဖော်ပြထားသော host GUI အတိုင်း တူညီသည်။ Software rendering နှင့်
+whole-brain simulation သည် real-time ထက် နှေးနိုင်သည်။ Headless mode တွင်
+interactive GUI မရှိပါ; မူလ OSMesa ဂဏန်း/MP4 workflow ကို ဆက်လက်ထားလိုပါက
+`--gui` မပါဘဲ argument များကို တိုက်ရိုက် ပေးပို့ပါ။
 
-#### Display troubleshooting
+#### Display ပြဿနာရှာဖွေခြင်း
 
-- Check `echo "$DISPLAY"` and `echo "$XAUTHORITY"` in a terminal opened on
-  your desktop. The helper accepts local displays such as `:0`, `:1` and
-  `unix:0`, not SSH-forwarded/TCP displays such as `localhost:10.0`.
-- If `XAUTHORITY` is unset, the helper uses `$HOME/.Xauthority`. For a desktop
-  that stores it elsewhere (for example GDM), set `XAUTHORITY` to that session's
-  actual readable file before invoking the helper. It does not weaken X server
-  access control to work around missing cookies.
-- A Wayland session needs XWayland and a valid `DISPLAY`. Native Wayland-only
-  sessions, remote Docker daemons and Docker Desktop/Windows/macOS display
-  forwarding are not configured by this helper.
-- Do not pass `MUJOCO_GL=egl` or `PYOPENGL_PLATFORM=osmesa` for the GUI. Use the
-  helper so its GLFW/GLX overrides are applied together.
+- သင့် desktop တွင် ဖွင့်ထားသော terminal တွင် `echo "$DISPLAY"` နှင့်
+  `echo "$XAUTHORITY"` ကို စစ်ဆေးပါ။ Helper သည် `:0`၊ `:1`၊ `unix:0`
+  ကဲ့သို့သော local display များကိုသာ လက်ခံပြီး `localhost:10.0` ကဲ့သို့
+  SSH-forward/TCP display များကို လက်မခံပါ။
+- `XAUTHORITY` သတ်မှတ်မထားလျှင် helper က `$HOME/.Xauthority` ကို သုံးမည်။
+  အခြားနေရာတွင် သိမ်းဆည်းသော desktop (ဥပမာ GDM) အတွက် helper ကို မခေါ်မီ
+  ၎င်း session ၏ တကယ်ဖတ်နိုင်သော ဖိုင်ကို `XAUTHORITY` တွင် သတ်မှတ်ပါ။
+  ပျောက်ဆုံးနေသော cookie များကို ဖြတ်ကျော်ရန် X server ၏ access control
+  ကို ဒုර်ဗလ မလုပ်ပါ။
+- Wayland session တစ်ခုအတွက် XWayland နှင့် မှန်ကန်သော `DISPLAY` လိုအပ်သည်။
+  Native Wayland-only session များ၊ remote Docker daemon များနှင့် Docker
+  Desktop/Windows/macOS display forwarding များကို ဤ helper က
+  configure မလုပ်ပါ။
+- GUI အတွက် `MUJOCO_GL=egl` သို့မဟုတ် `PYOPENGL_PLATFORM=osmesa` ကို
+  မသုံးပါနှင့်။ GLFW/GLX override များ အတူတကွ အကျုံးဝင်စေရန် helper ကို
+  သုံးပါ။
