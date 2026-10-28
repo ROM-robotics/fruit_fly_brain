@@ -8,7 +8,7 @@
 - မျက်စိနှစ်ဖက်မှ brightness ကို SNN ထဲ ထည့်ပြီး motor drive ဘယ်/ညာကို တွက်ပါတယ်။
 - ခြေထောက်တစ်ချောင်းချင်းကို FlyGym ၏ ရှိပြီးသား walking controller က ထိန်းပါတယ်။
 - **Odyssey-3 သို့မဟုတ် အခြား generative world model မချိတ်ထားသေးပါ။**
-- **CLI က GUI window သို့မဟုတ် video မထုတ်ပေးပါ။** Terminal summary နှင့် optional `.npz` numerical output ကိုသာ ထုတ်ပါတယ်။
+- CLI သည် default headless ဖြစ်ပြီး optional `.npz` output၊ `--video` ဖြင့် MP4၊ `--gui` ဖြင့် native MuJoCo viewer ကို သုံးနိုင်ပါတယ်။ [MP4](../README.md#mp4-preview-no-gui-required) နှင့် [host GUI အသုံးပြုနည်း](../README.md#native-mujoco-gui-host-desktop) ကို ကြည့်ပါ။
 - Biological fly တစ်ကောင်လုံး၏ brain/body ကို အတိအကျ ပြန်လည်ဖန်တီးထားခြင်း၊ Odyssey demo ကို အတိအကျ ပြန်တည်ဆောက်ထားခြင်း မဟုတ်ပါ။
 
 ## ၁။ Simulator၊ body၊ brain တို့ကို ဘယ်က ယူထားသလဲ
@@ -368,6 +368,15 @@ python -m fruitfly_brain.closed_loop --help
 | `--root-ids` | Project root အောက်က `data/proofread_root_ids_783.npy` | Proofread neuron IDs |
 | `--cache` | Project root အောက်က `data/cache/connectome.npz` | Cached sparse matrix နှင့် pools |
 | `--out` | မရှိ | ပေးထားမှ run arrays ကို `.npz` အဖြစ် သိမ်းမည် |
+| `--gui` | ပိတ်ထား | Host desktop မှာ native MuJoCo viewer ဖွင့်မည်။ `MUJOCO_GL=glfw` လိုပြီး `PYOPENGL_PLATFORM` ကို unset လုပ်ပါ။ |
+| `--video [MP4]` | `SAVE_VIDEO=False` ဆို မရှိ | MP4 record လုပ်မည်။ Path မပေးလျှင် project root အောက်က `data/runs/simulation.mp4` ကို သုံးမည်။ |
+| `--no-video` | မပေးထား | Global `SAVE_VIDEO=True` ဖြစ်လည်း video ပိတ်မည်။ |
+
+[closed_loop.py](../fruitfly_brain/closed_loop.py) တွင် `SAVE_VIDEO = True`
+ထားလျှင် ordinary CLI runs မှာ MP4 ကို အလိုအလျောက် သိမ်းပါတယ်။
+Default `False` ဖြစ်သောကြောင့် မူလ numerical-only behavior မပြောင်းပါ။
+Video သည် 640×480၊ 30 FPS၊ 0.2× playback ဖြစ်ပြီး simulated 1 s ကို
+ခန့်မှန်း 5 s ကြာ ကြည့်နိုင်ပါတယ်။ Frame buffering ကြောင့် memory ပိုသုံးပါတယ်။
 
 Default data/cache paths များသည် source file မှတွက်သော project root ကို အခြေခံပါတယ်။ ကိုယ်တိုင်ပေးသော relative paths များ၊ ဥပမာ `--out data/runs/run_1s.npz` သည် လက်ရှိ working directory ကို အခြေခံပါတယ်။
 
@@ -554,7 +563,7 @@ Flat arena တွင် ဘယ်/ညာ brightness ဆင်တူနိုင�
 
 - Odyssey-3 integration: [OdysseyWorld](./world.py) သည် placeholder သာဖြစ်ပြီး construction မှာ `NotImplementedError` ပေးပါတယ်။ CLI က `FlyGymWorld` ကိုပဲ သုံးပါတယ်။
 - Generative/action-conditioned world model backend။
-- Interactive GUI၊ saved video နှင့် visual navigation target။
+- Visual navigation target နှင့် custom browser dashboard။ Native MuJoCo viewer ကို `--gui`၊ saved MP4 ကို `--video` ဖြင့် သုံးနိုင်ပါပြီ။
 - Spatial retinal encoding၊ optic flow သို့မဟုတ် object tracking။
 - Cell-type-verified sensory/descending mappings နှင့် biological firing-rate calibration။
 - Connectome-based VNC/leg-joint controller။ လက်ရှိ walking controller သည် FlyGym မှ ဖြစ်ပါတယ်။

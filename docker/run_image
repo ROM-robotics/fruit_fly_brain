@@ -1,0 +1,67 @@
+#!/bin/bash
+set -euo pipefail
+
+PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+IMAGE_NAME="${IMAGE_NAME:-romrobotics/fruit_fly_brain:latest}"
+
+if [[ "$#" -eq 0 ]]; then
+    printf '%s\n' 'Opening MuJoCo GUI for 30 simulated seconds (video disabled).'
+    set -- --gui --duration 30.0 --no-video
+fi
+
+docker_args=(
+    --rm
+    --user "$(id -u):$(id -g)"
+    --env HOME=/tmp
+    --mount "type=bind,source=$PROJECT_ROOT/data,target=/data"
+)
+
+gui=false
+for arg in "$@"; do
+    if [[ "$arg" == "--gui" ]]; then
+        gui=true
+    fi
+done
+
+if "$gui"; then
+    if [[ ! "${DISPLAY:-}" =~ ^(unix)?:[0-9]+(\.[0-9]+)?$ ]]; then
+        printf '%s\n' 'GUI requires a local X11/XWayland DISPLAY (for example :0 or :1).' >&2
+        exit 1
+    fi
+    display_number="${DISPLAY#*:}"
+    display_number="${display_number%%.*}"
+    if [[ ! -S "/tmp/.X11-unix/X$display_number" ]]; then
+        printf 'X11 socket not found: /tmp/.X11-unix/X%s\n' "$display_number" >&2
+        exit 1
+    fi
+    if ! command -v xauth >/dev/null 2>&1; then
+        printf '%s\n' 'GUI requires xauth on the host. On Ubuntu: sudo apt-get install xauth' >&2
+        exit 1
+    fi
+    auth_source="${XAUTHORITY:-$HOME/.Xauthority}"
+    if [[ ! -r "$auth_source" ]]; then
+        printf 'Cannot read Xauthority file: %s. Set XAUTHORITY to your desktop session file.\n' "$auth_source" >&2
+        exit 1
+    fi
+    cookie="$(xauth -f "$auth_source" nlist "$DISPLAY")"
+    if [[ -z "$cookie" ]]; then
+        printf 'No X11 authentication cookie found for DISPLAY=%s in %s.\n' "$DISPLAY" "$auth_source" >&2
+        exit 1
+    fi
+
+    gui_xauth="$(mktemp /tmp/fruitfly-xauth.XXXXXX)"
+    trap 'rm -f -- "$gui_xauth"' EXIT
+    # FamilyWild lets the display cookie work with the container's hostname.
+    printf '%s\n' "$cookie" | sed 's/^..../ffff/' | xauth -f "$gui_xauth" nmerge -
+    docker_args+=(
+        --env "DISPLAY=$DISPLAY"
+        --env XAUTHORITY=/tmp/fruitfly.xauth
+        --env MUJOCO_GL=glfw
+        --env PYOPENGL_PLATFORM=glx
+        --env LIBGL_ALWAYS_SOFTWARE=1
+        --mount type=bind,source=/tmp/.X11-unix,target=/tmp/.X11-unix,readonly
+        --mount "type=bind,source=$gui_xauth,target=/tmp/fruitfly.xauth,readonly"
+    )
+fi
+
+docker run "${docker_args[@]}" "$IMAGE_NAME" "$@"

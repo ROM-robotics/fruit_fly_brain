@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+IMAGE_NAME="${IMAGE_NAME:-romrobotics/fruit_fly_brain:latest}"
+
+exec docker build -f "$PROJECT_ROOT/docker/Dockerfile" -t "$IMAGE_NAME" "$@" "$PROJECT_ROOT"

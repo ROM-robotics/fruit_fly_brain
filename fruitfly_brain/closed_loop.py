@@ -3,16 +3,25 @@
 from __future__ import annotations
 
 import argparse
+import os
+from contextlib import closing, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
+from time import monotonic
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from fruitfly_brain.connectome import Connectome, load_connectome
 from fruitfly_brain.lif import LIFConfig, LIFNetwork
 
+if TYPE_CHECKING:
+    from mujoco.viewer import Handle
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = PROJECT_ROOT / "data"
+SAVE_VIDEO = False
+DEFAULT_VIDEO_PATH = DATA_DIR / "runs" / "simulation.mp4"
 
 
 @dataclass(frozen=True)
@@ -39,6 +48,9 @@ def run_closed_loop(
     world,
     duration_s: float,
     cfg: LoopConfig = LoopConfig(),
+    *,
+    record_video: bool = False,
+    viewer: Handle | None = None,
 ) -> dict:
     """Run the loop and return trajectory and activity records."""
     brain_dt_s = net.config.dt_ms * 1e-3
@@ -57,8 +69,12 @@ def run_closed_loop(
     drives: list[np.ndarray] = []
     motor_rates: list[np.ndarray] = []
     spike_counts: list[int] = []
+    completed_steps = 0
+    next_viewer_sync = monotonic()
 
     for step in range(n_steps):
+        if viewer is not None and not viewer.is_running():
+            break
         if step % cfg.brain_every == 0:
             external[:] = 0.0
             external[conn.input_left] = cfg.input_gain_mv * eye[0]
@@ -79,11 +95,22 @@ def run_closed_loop(
 
         eye = world.step(drive)
         positions[step] = world.position
+        completed_steps += 1
+        if record_video:
+            world.render()
+        if viewer is not None:
+            now = monotonic()
+            if now >= next_viewer_sync:
+                viewer.sync()
+                next_viewer_sync = now + 1.0 / 60.0
+
+    if viewer is not None and viewer.is_running():
+        viewer.sync()
 
     return {
-        "positions": positions,
-        "drives": np.asarray(drives),
-        "motor_rates_hz": np.asarray(motor_rates),
+        "positions": positions[:completed_steps],
+        "drives": np.asarray(drives).reshape(-1, 2),
+        "motor_rates_hz": np.asarray(motor_rates).reshape(-1, 2),
         "spike_counts": np.asarray(spike_counts),
     }
 
@@ -95,7 +122,33 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--root-ids", type=Path, default=DATA_DIR / "proofread_root_ids_783.npy")
     parser.add_argument("--cache", type=Path, default=DATA_DIR / "cache" / "connectome.npz")
     parser.add_argument("--out", type=Path, default=None, help="optional .npz for the run record")
+    parser.add_argument("--gui", action="store_true", help="open the native MuJoCo desktop viewer")
+    video_options = parser.add_mutually_exclusive_group()
+    video_options.add_argument(
+        "--video",
+        type=Path,
+        nargs="?",
+        const=DEFAULT_VIDEO_PATH,
+        metavar="MP4",
+        help="record an MP4 (default path: data/runs/simulation.mp4)",
+    )
+    video_options.add_argument(
+        "--no-video", dest="video", action="store_const", const=None,
+        help="disable MP4 recording even when SAVE_VIDEO is True",
+    )
+    parser.set_defaults(video=DEFAULT_VIDEO_PATH if SAVE_VIDEO else None)
     args = parser.parse_args(argv)
+    if args.video is not None and args.video.suffix.lower() != ".mp4":
+        parser.error("--video must have an .mp4 extension")
+    if args.gui and (
+        os.environ.get("MUJOCO_GL", "glfw").lower() != "glfw"
+        or os.environ.get("PYOPENGL_PLATFORM", "").lower() in {"egl", "osmesa"}
+    ):
+        parser.error(
+            "--gui requires GLFW to avoid offscreen-context conflicts. Run with "
+            "'env -u PYOPENGL_PLATFORM MUJOCO_GL=glfw python "
+            "-m fruitfly_brain.closed_loop --gui'."
+        )
 
     from fruitfly_brain.world import FlyGymWorld
 
@@ -107,20 +160,36 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     cfg = LoopConfig()
-    world = FlyGymWorld()
-    net = LIFNetwork(conn.weights, LIFConfig(dt_ms=cfg.brain_every * world.timestep * 1e3))
-    record = run_closed_loop(conn, net, world, args.duration, cfg)
+    with closing(FlyGymWorld()) as world:
+        net = LIFNetwork(conn.weights, LIFConfig(dt_ms=cfg.brain_every * world.timestep * 1e3))
+        viewer_context = world.launch_viewer() if args.gui else nullcontext()
+        with viewer_context as viewer:
+            if args.gui:
+                print("MuJoCo GUI opened; close the window to stop early.", flush=True)
+            record = run_closed_loop(
+                conn, net, world, args.duration, cfg,
+                record_video=args.video is not None, viewer=viewer,
+            )
 
-    displacement = np.linalg.norm(record["positions"][-1] - record["positions"][0])
-    print(
-        f"steps={len(record['positions'])} total_spikes={int(record['spike_counts'].sum())} "
-        f"mean_drive={record['drives'].mean(axis=0).round(3).tolist()} "
-        f"displacement_mm={displacement:.3f}"
-    )
-    if args.out is not None:
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        np.savez(args.out, **record)
-        print(f"saved {args.out}")
+        if args.gui and len(record["positions"]) < int(round(args.duration / world.timestep)):
+            print(f"GUI closed early after {len(record['positions'])} physics steps.")
+        if len(record["positions"]) == 0:
+            print("No simulation steps completed; no output saved.")
+            return
+
+        displacement = np.linalg.norm(record["positions"][-1] - record["positions"][0])
+        print(
+            f"steps={len(record['positions'])} total_spikes={int(record['spike_counts'].sum())} "
+            f"mean_drive={record['drives'].mean(axis=0).round(3).tolist()} "
+            f"displacement_mm={displacement:.3f}"
+        )
+        if args.out is not None:
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            np.savez(args.out, **record)
+            print(f"saved {args.out}")
+        if args.video is not None:
+            world.save_video(args.video)
+            print(f"saved video {args.video}")
 
 
 if __name__ == "__main__":

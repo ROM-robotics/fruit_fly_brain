@@ -4,7 +4,7 @@
 
 Install/run နည်းအတွက် [01_README.md](./01_README.md) ကို ကြည့်ပါ။ ဤနေရာတွင် code အတွင်းပိုင်းကို အဓိက ရှင်းပြပါတယ်။
 
-> **လက်ရှိ system:** FlyWire connectivity + NumPy LIF SNN + FlyGym walking controller/body + MuJoCo physics။ Odyssey-3 integration၊ video export၊ interactive viewer နှင့် biological mapping အတည်ပြုချက် မပါသေးပါ။
+> **လက်ရှိ system:** FlyWire connectivity + NumPy LIF SNN + FlyGym walking controller/body + MuJoCo physics၊ optional MP4 export နှင့် native MuJoCo viewer။ Odyssey-3 integration နှင့် biological mapping အတည်ပြုချက် မပါသေးပါ။
 
 ## မာတိကာ
 
@@ -453,6 +453,9 @@ flowchart TD
 | [FlyGymWorld.step(drive)](./world.py) | Array-like `[left, right]` → eye `(2,)` | Drive ကို float array ပြောင်းပြီး controller ကို physics step တစ်ခု advance လုပ်စေပါတယ်။ |
 | [FlyGymWorld.position](./world.py) | Property → `(3,)` | Latest `_obs["fly"][0]` မှ position ကို ယူပါတယ်။ Reset/step မလုပ်မီ `_obs=None` ဖြစ်ပါတယ်။ |
 | [FlyGymWorld.render()](./world.py) | No argument → `None` | Controller ၏ render ကို ခေါ်ပါတယ်။ Wrapper က frame ကို return မလုပ်ပါ။ |
+| [FlyGymWorld.save_video(path)](../fruitfly_brain/world.py) | MP4 path → `None` | Recorded camera frames ကို `stabilization_time=0` ဖြင့် သိမ်းပါတယ်။ Frames မရှိလျှင် `RuntimeError`၊ extension မမှန်လျှင် `ValueError` ပေးပါတယ်။ |
+| [FlyGymWorld.launch_viewer()](../fruitfly_brain/world.py) | No argument → MuJoCo `Handle` | FlyGym ၏ `physics.model.ptr` / `physics.data.ptr` ကို passive viewer နှင့် share လုပ်ပါတယ်။ Camera က thorax ကို track လုပ်ပါတယ်။ |
+| [FlyGymWorld.close()](../fruitfly_brain/world.py) | No argument → `None` | Controller ကို ပိတ်ပြီး physics/rendering resources ကို `Physics.free()` ဖြင့် release လုပ်ပါတယ်။ World ကို နောက်ထပ် မသုံးရပါ။ CLI က `closing()` context ဖြင့် completion/error နှစ်မျိုးလုံးမှာ ခေါ်ပါတယ်။ |
 | [FlyGymWorld.eye_brightness(obs)](./world.py) | Observation dict → `(2,)` | Static method ဖြစ်ပြီး vision ကို normalize/average လုပ်ပါတယ်။ |
 | [OdysseyWorld.__init__(*args, **kwargs)](./world.py) | Any arguments → exception | ချက်ချင်း `NotImplementedError` ပေးပါတယ်။ Usable world instance မရပါ။ |
 
@@ -480,7 +483,18 @@ flowchart LR
 
 Encoder သည် 0–255 သို့မဟုတ် 0–1 vision values ဟူသော assumption အောက်တွင် သုံးထားပါတယ်။ Input range ကို explicit clip/validate မလုပ်ပါ။ Ommatidia တည်နေရာ၊ channel-specific processing၊ image contrast နှင့် optic flow တို့ကို averaging ကြောင့် မထိန်းထားပါ။
 
-[FlyGymWorld.render()](./world.py) သည် ရှိသော်လည်း [run_closed_loop()](./closed_loop.py) မှ မခေါ်ပါ။ ထို့ကြောင့် default CLI run သည် video/viewer မထုတ်ပါ။
+[run_closed_loop()](../fruitfly_brain/closed_loop.py) တွင် `record_video=True`
+ဖြစ်မှ physics step တိုင်း [FlyGymWorld.render()](../fruitfly_brain/world.py)
+ကို ခေါ်ပါတယ်။ Camera က 30 FPS / 0.2× playback cadence အတိုင်း
+frame capture ကို ကိုယ်တိုင် throttle လုပ်ပါတယ်။ Reset လုပ်လျှင် ယခင် frames
+ကို ရှင်းပြီး empty-video guard ကို reset လုပ်ပါတယ်။
+
+`--gui` ဆိုလျှင် [main()](../fruitfly_brain/closed_loop.py) က viewer context
+ကို ဖွင့်ပြီး loop သို့ `viewer` ပေးပါတယ်။ Loop က window state ကို step တိုင်း
+စစ်ပြီး wall-clock 60 Hz ခန့်ဖြင့် sync လုပ်ပါတယ်။ Window ပိတ်လျှင် completed
+steps အထိသာ records ကို ဖြတ်ပြီး save လုပ်ပါတယ်။ `with` context က completion
+သို့မဟုတ် error ဖြစ်လျှင် viewer ကို ပိတ်ပါတယ်။ GUI သည် GLFW backend လိုပြီး
+headless EGL/OSMesa settings နှင့် ရောသုံးခြင်းကို CLI က reject လုပ်ပါတယ်။
 
 ## 7. Closed-loop module
 
@@ -490,6 +504,8 @@ Encoder သည် 0–255 သို့မဟုတ် 0–1 vision values ဟူ
 
 - `PROJECT_ROOT = Path(__file__).resolve().parents[1]` ဖြစ်ပါတယ်။
 - `DATA_DIR = PROJECT_ROOT / "data"` ဖြစ်ပါတယ်။
+- `SAVE_VIDEO = False` သည် CLI automatic MP4 recording အတွက် global flag ဖြစ်ပါတယ်။
+- `DEFAULT_VIDEO_PATH = DATA_DIR / "runs" / "simulation.mp4"` ဖြစ်ပါတယ်။
 - Default source/cache paths ကို current working directory မှမဟုတ်ဘဲ `PROJECT_ROOT` မှ တွက်ပါတယ်။
 
 | [LoopConfig](./closed_loop.py) field | Default | အသုံးပြုပုံ |
@@ -505,7 +521,7 @@ Encoder သည် 0–255 သို့မဟုတ် 0–1 vision values ဟူ
 | Function | Input → output | တာဝန် |
 | --- | --- | --- |
 | [_pool_rate_hz(spikes, pool, dt_s)](./closed_loop.py) | Spike mask + index pool + seconds → float | `spikes[pool].mean() / dt_s` တွက်ပါတယ်။ Empty pool အတွက် `0.0` ပြန်ပေးပါတယ်။ |
-| [run_closed_loop(conn, net, world, duration_s, cfg=LoopConfig())](./closed_loop.py) | Objects + duration/config → dict | Timestep စစ်ခြင်း၊ sensory encoding၊ neural/physics updates နှင့် recording လုပ်ပါတယ်။ |
+| [run_closed_loop(conn, net, world, duration_s, cfg=LoopConfig(), *, record_video=False, viewer=None)](../fruitfly_brain/closed_loop.py) | Objects + duration/config → dict | Timestep စစ်ခြင်း၊ sensory encoding၊ neural/physics updates၊ numerical recording၊ optional camera capture နှင့် native GUI sync လုပ်ပါတယ်။ |
 | [main(argv=None)](./closed_loop.py) | Optional argument list → `None` | CLI parsing၊ objects ဆောက်ခြင်း၊ loop ခေါ်ခြင်း၊ summary နှင့် optional save လုပ်ပါတယ်။ |
 
 ### 7.3 CLI initialization flow
@@ -536,7 +552,12 @@ flowchart TD
     classDef record fill:#ccfbf1,stroke:#0f766e,color:#134e4a;
 ```
 
-Actual CLI options သည် `--duration`, `--edges`, `--root-ids`, `--cache`, `--out` ဖြစ်ပါတယ်။ Gain tuning၊ world-backend selection၊ video နှင့် seed options မရှိပါ။ CLI သည် [FlyGymWorld](./world.py) ကိုပဲ ဆောက်ပြီး [OdysseyWorld](./world.py) သို့ switch မလုပ်ပါ။
+Actual CLI options သည် `--duration`, `--edges`, `--root-ids`, `--cache`, `--out`,
+`--video [MP4]`, `--no-video`, `--gui` ဖြစ်ပါတယ်။ Video options က global `SAVE_VIDEO`
+ကို per-run override လုပ်နိုင်ပါတယ်။ Loop ပြီးမှ MP4 encode လုပ်ပြီး success
+ဖြစ်မှ saved path ကို print လုပ်ပါတယ်။ Gain tuning၊ world-backend selection
+နှင့် seed options မရှိပါ။ CLI သည် [FlyGymWorld](./world.py) ကိုပဲ ဆောက်ပြီး
+[OdysseyWorld](./world.py) သို့ switch မလုပ်ပါ။
 
 ### 7.4 `run_closed_loop()` flow
 
@@ -722,23 +743,28 @@ displacement = norm(positions[-1] - positions[0])
 
 ## 10. Tests and coverage boundaries
 
-လက်ရှိ [tests/](../tests/) တွင် test functions **14 ခု** ရှိပါတယ်။ အောက်ပါ diagram သည် test dependency/coverage map ဖြစ်ပြီး test execution order မဟုတ်ပါ။
+လက်ရှိ [tests/](../tests/) တွင် connectivity၊ LIF၊ world နှင့် video/CLI
+tests ပါပါတယ်။ အောက်ပါ diagram သည် test dependency/coverage map ဖြစ်ပြီး
+test execution order မဟုတ်ပါ။
 
 ```mermaid
 flowchart TD
     tests["tests/"]:::record
     tc["test_connectome.py<br/>7 test functions"]:::record
     tl["test_lif.py<br/>5 test functions"]:::record
-    tw["test_world.py<br/>2 test functions"]:::record
+    tw["test_world.py<br/>physics / MP4 / display requirement"]:::record
+    tv["test_closed_loop.py<br/>video flag / CLI / numerical parity<br/>GUI lifecycle / early close / backend validation"]:::record
+    loop["closed_loop.py"]:::control
     conn["connectome.py"]:::data
     lif["lif.py"]:::brain
     world["world.py"]:::world
     cache["Optional real cache<br/>skip if unavailable"]:::data
-    gap["No dedicated automated tests yet:<br/>run_closed_loop / CLI / dt mismatch<br/>visual steering and video"]:::error
+    gap["No dedicated automated tests yet:<br/>dt mismatch / visual steering"]:::error
 
     tests --> tc --> conn
     tests --> tl --> lif
     tests --> tw --> world
+    tests --> tv --> loop
     tc --> cache
     tests -.-> gap
 
@@ -746,6 +772,7 @@ flowchart TD
     classDef data fill:#ede9fe,stroke:#7c3aed,color:#2e1065;
     classDef brain fill:#dcfce7,stroke:#16a34a,color:#14532d;
     classDef world fill:#ffedd5,stroke:#ea580c,color:#7c2d12;
+    classDef control fill:#dbeafe,stroke:#2563eb,color:#172554;
     classDef error fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;
 ```
 
@@ -829,8 +856,8 @@ Suite run နည်းကို [01_README.md](./01_README.md) တွင် ဖ�
 | Neural dynamics / synaptic scaling | [LIFConfig](./lif.py)၊ [LIFNetwork](./lif.py) နှင့် [LIF tests](../tests/test_lif.py) |
 | Motor-rate smoothing / drive decoding | [_pool_rate_hz()](./closed_loop.py)၊ [LoopConfig](./closed_loop.py) နှင့် [run_closed_loop()](./closed_loop.py) |
 | Arena / camera / body model | [FlyGymWorld.__init__()](./world.py) နှင့် [world tests](../tests/test_world.py) |
-| Video / interactive viewer | [render()](./world.py)၊ [run_closed_loop()](./closed_loop.py) နှင့် [main()](./closed_loop.py) |
+| Video / interactive viewer | MP4 အတွက် [render() / save_video()](../fruitfly_brain/world.py) နှင့် [SAVE_VIDEO / run_closed_loop() / main()](../fruitfly_brain/closed_loop.py)၊ native viewer အတွက် [launch_viewer()](../fruitfly_brain/world.py) နှင့် `--gui` ကို သုံးပါတယ်။ |
 | Config metadata / extra records | [run_closed_loop()](./closed_loop.py) return dict၊ [main()](./closed_loop.py) serialization နှင့် output documentation |
 | New world backend / Odyssey adapter | [world.py](./world.py) interface၊ [main()](./closed_loop.py) backend construction နှင့် timestep/observation compatibility |
 
-**Source inventory အကျဉ်း:** Runtime Python modules ၅ ခုအတွင်း class ၆ ခု၊ source-defined function/method/property getter ၂၁ ခုရှိပါတယ်။ Dataclass-generated methods နှင့် external FlyGym/MuJoCo implementation များကို ထို callable count ထဲ မထည့်ထားပါ။ စာတမ်းသည် 2026-10-24 တွင် ဖတ်ရှုထားသော source structure ကို အခြေခံပါတယ်။
+**Source inventory အကျဉ်း:** Runtime Python modules ၅ ခုအတွင်း class ၆ ခု၊ source-defined function/method/property getter ၂၄ ခုရှိပါတယ်။ Dataclass-generated methods နှင့် external FlyGym/MuJoCo implementation များကို ထို callable count ထဲ မထည့်ထားပါ။ မူလ source structure ကို 2026-10-24 တွင် မှတ်တမ်းတင်ထားပြီး MP4 / native GUI support ကို 2026-10-28 တွင် ဖြည့်စွက်ထားပါတယ်။
